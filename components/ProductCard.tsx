@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, memo } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Star, ShoppingCart } from "lucide-react"
@@ -14,7 +13,7 @@ interface ProductCardProps {
   product: Product
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
   const [imageError, setImageError] = useState(false)
   const { addItem } = useCart()
 
@@ -43,6 +42,8 @@ export default function ProductCard({ product }: ProductCardProps) {
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
             onError={() => setImageError(true)}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+            priority={product.featured}
           />
           {product.featured && (
             <div className="absolute top-2 left-2 bg-gray-900 text-white px-2 py-1 text-xs rounded">Featured</div>
@@ -76,4 +77,6 @@ export default function ProductCard({ product }: ProductCardProps) {
       </div>
     </Link>
   )
-}
+})
+
+export default ProductCard

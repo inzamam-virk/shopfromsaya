@@ -37,18 +37,22 @@ export default function AuthPage() {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) {
-      setMessage(error.message)
-    } else {
-      router.push("/products")
+      if (error) {
+        setMessage(error.message)
+      } else {
+        router.push("/products")
+      }
+    } catch (error) {
+      setMessage("An error occurred during sign in")
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -62,38 +66,54 @@ export default function AuthPage() {
     const fullName = formData.get("fullName") as string
     const phoneNumber = formData.get("phoneNumber") as string
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: undefined, // Remove email verification
-        data: {
-          full_name: fullName,
-          phone_number: phoneNumber,
+    try {
+      // Sign up with email confirmation disabled
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: undefined,
+          data: {
+            full_name: fullName,
+            phone_number: phoneNumber,
+            email_confirm: false,
+          },
         },
-      },
-    })
-
-    if (error) {
-      setMessage(error.message)
-    } else if (data.user) {
-      // Insert user data into our users table
-      const { error: insertError } = await supabase.from("users").insert({
-        id: data.user.id,
-        full_name: fullName,
-        phone_number: phoneNumber,
-        role: "user",
       })
 
-      if (insertError) {
-        console.error("Error inserting user data:", insertError)
+      if (error) {
+        setMessage(error.message)
+      } else if (data.user) {
+        // Insert user data into our users table immediately
+        const { error: insertError } = await supabase.from("users").upsert({
+          id: data.user.id,
+          email: email,
+          full_name: fullName,
+          phone_number: phoneNumber,
+          role: "user",
+        })
+
+        if (insertError) {
+          console.error("Error inserting user data:", insertError)
+        }
+
+        // Sign in immediately after signup
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+
+        if (signInError) {
+          setMessage("Account created but sign in failed. Please try signing in manually.")
+        } else {
+          router.push("/products")
+        }
       }
-
-      // Automatically sign in the user
-      router.push("/products")
+    } catch (error) {
+      setMessage("An error occurred during sign up")
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   return (
@@ -176,9 +196,7 @@ export default function AuthPage() {
 
         {message && (
           <div
-            className={`mt-4 p-4 rounded-md ${
-              message.includes("Check your email") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-            }`}
+            className={`mt-4 p-4 rounded-md ${message.includes("success") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}
           >
             {message}
           </div>

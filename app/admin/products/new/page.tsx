@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
+import ImageUploader from "@/components/ImageUploader"
 import type { Category, User } from "@/lib/types"
 
 export default function NewProductPage() {
@@ -26,7 +27,7 @@ export default function NewProductPage() {
     price: "",
     weight: "",
     inventory_count: "",
-    images: "",
+    images: [] as string[],
     tags: "",
     featured: false,
   })
@@ -65,8 +66,18 @@ export default function NewProductPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleImagesChange = (images: string[]) => {
+    setFormData((prev) => ({ ...prev, images }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (formData.images.length === 0) {
+      alert("Please upload at least one product image")
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -78,7 +89,7 @@ export default function NewProductPage() {
         price: Number.parseFloat(formData.price),
         weight: formData.weight ? Number.parseFloat(formData.weight) : null,
         inventory_count: Number.parseInt(formData.inventory_count),
-        images: formData.images ? formData.images.split(",").map((url) => url.trim()) : [],
+        images: formData.images,
         tags: formData.tags ? formData.tags.split(",").map((tag) => tag.trim()) : [],
         featured: formData.featured,
       }
@@ -97,19 +108,26 @@ export default function NewProductPage() {
   }
 
   if (!user || user.role !== "admin") {
-    return null
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-gray-600">You need admin privileges to access this page.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Add New Product</h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Product Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Basic Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="name">Product Name *</Label>
@@ -191,18 +209,6 @@ export default function NewProductPage() {
             </div>
 
             <div>
-              <Label htmlFor="images">Image URLs (comma-separated)</Label>
-              <Textarea
-                id="images"
-                name="images"
-                value={formData.images}
-                onChange={handleInputChange}
-                placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg"
-                rows={2}
-              />
-            </div>
-
-            <div>
               <Label htmlFor="tags">Tags (comma-separated)</Label>
               <Input
                 id="tags"
@@ -221,18 +227,27 @@ export default function NewProductPage() {
               />
               <Label htmlFor="featured">Featured Product</Label>
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="flex gap-4">
-              <Button type="submit" disabled={loading} className="flex-1">
-                {loading ? "Creating..." : "Create Product"}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => router.back()}>
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Product Images</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ImageUploader images={formData.images} onImagesChange={handleImagesChange} maxImages={5} />
+          </CardContent>
+        </Card>
+
+        <div className="flex gap-4">
+          <Button type="submit" disabled={loading} className="flex-1">
+            {loading ? "Creating Product..." : "Create Product"}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => router.back()}>
+            Cancel
+          </Button>
+        </div>
+      </form>
     </div>
   )
 }

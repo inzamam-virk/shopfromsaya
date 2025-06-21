@@ -1,10 +1,10 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { Search, ShoppingBag, User, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,7 @@ export default function Header() {
   const [user, setUser] = useState<UserType | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const { getTotalItems, openCart } = useCart()
+  const router = useRouter()
 
   useEffect(() => {
     const getUser = async () => {
@@ -45,17 +46,35 @@ export default function Header() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     await supabase.auth.signOut()
     setUser(null)
-  }
+    router.push("/")
+  }, [router])
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (searchQuery.trim()) {
-      window.location.href = `/products?search=${encodeURIComponent(searchQuery.trim())}`
-    }
-  }
+  const handleSearch = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      if (searchQuery.trim()) {
+        router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`)
+        setIsMenuOpen(false)
+      }
+    },
+    [searchQuery, router],
+  )
+
+  const totalItems = useMemo(() => getTotalItems(), [getTotalItems])
+
+  const navigationLinks = useMemo(
+    () => [
+      { href: "/products", label: "All Products" },
+      { href: "/products?category=dresses", label: "Dresses" },
+      { href: "/products?category=tops", label: "Tops" },
+      { href: "/products?category=bottoms", label: "Bottoms" },
+      { href: "/products?category=accessories", label: "Accessories" },
+    ],
+    [],
+  )
 
   return (
     <header className="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -69,26 +88,22 @@ export default function Header() {
               width={120}
               height={40}
               className="h-10 w-auto"
+              priority
             />
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8">
-            <Link href="/products" className="text-gray-900 hover:text-gray-600 transition-colors">
-              All Products
-            </Link>
-            <Link href="/products?category=dresses" className="text-gray-900 hover:text-gray-600 transition-colors">
-              Dresses
-            </Link>
-            <Link href="/products?category=tops" className="text-gray-900 hover:text-gray-600 transition-colors">
-              Tops
-            </Link>
-            <Link href="/products?category=bottoms" className="text-gray-900 hover:text-gray-600 transition-colors">
-              Bottoms
-            </Link>
-            <Link href="/products?category=accessories" className="text-gray-900 hover:text-gray-600 transition-colors">
-              Accessories
-            </Link>
+            {navigationLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-gray-900 hover:text-gray-600 transition-colors"
+                prefetch={false}
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
           {/* Search Bar */}
@@ -118,7 +133,7 @@ export default function Header() {
                   <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                     My Profile
                   </Link>
-                  <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                  <Link href="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                     Order History
                   </Link>
                   {user.role === "admin" && (
@@ -143,7 +158,7 @@ export default function Header() {
                 </div>
               </div>
             ) : (
-              <Link href="/auth">
+              <Link href="/auth" prefetch={false}>
                 <Button variant="ghost" size="sm" className="flex items-center space-x-1">
                   <User className="h-5 w-5" />
                   <span className="hidden sm:inline">Sign In</span>
@@ -154,9 +169,9 @@ export default function Header() {
             {/* Cart */}
             <Button variant="ghost" size="sm" onClick={openCart} className="relative flex items-center space-x-1">
               <ShoppingBag className="h-5 w-5" />
-              {getTotalItems() > 0 && (
+              {totalItems > 0 && (
                 <span className="absolute -top-1 -right-1 bg-gray-900 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {getTotalItems()}
+                  {totalItems}
                 </span>
               )}
               <span className="hidden sm:inline">Cart</span>
@@ -185,41 +200,17 @@ export default function Header() {
               </div>
             </form>
             <nav className="space-y-2">
-              <Link
-                href="/products"
-                className="block py-2 text-gray-900 hover:text-gray-600"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                All Products
-              </Link>
-              <Link
-                href="/products?category=dresses"
-                className="block py-2 text-gray-900 hover:text-gray-600"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Dresses
-              </Link>
-              <Link
-                href="/products?category=tops"
-                className="block py-2 text-gray-900 hover:text-gray-600"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Tops
-              </Link>
-              <Link
-                href="/products?category=bottoms"
-                className="block py-2 text-gray-900 hover:text-gray-600"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Bottoms
-              </Link>
-              <Link
-                href="/products?category=accessories"
-                className="block py-2 text-gray-900 hover:text-gray-600"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Accessories
-              </Link>
+              {navigationLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="block py-2 text-gray-900 hover:text-gray-600"
+                  onClick={() => setIsMenuOpen(false)}
+                  prefetch={false}
+                >
+                  {link.label}
+                </Link>
+              ))}
             </nav>
           </div>
         )}
