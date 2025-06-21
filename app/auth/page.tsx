@@ -67,7 +67,7 @@ export default function AuthPage() {
     const phoneNumber = formData.get("phoneNumber") as string
 
     try {
-      // Sign up without email confirmation
+      // Sign up with email confirmation disabled
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -76,6 +76,7 @@ export default function AuthPage() {
           data: {
             full_name: fullName,
             phone_number: phoneNumber,
+            email_confirm: false,
           },
         },
       })
@@ -83,37 +84,29 @@ export default function AuthPage() {
       if (error) {
         setMessage(error.message)
       } else if (data.user) {
-        // Check if user needs email confirmation
-        if (data.user.email_confirmed_at || !data.user.confirmation_sent_at) {
-          // User is confirmed or confirmation is disabled - proceed with login
+        // Insert user data into our users table immediately
+        const { error: insertError } = await supabase.from("users").upsert({
+          id: data.user.id,
+          email: email,
+          full_name: fullName,
+          phone_number: phoneNumber,
+          role: "user",
+        })
 
-          // Insert user data into our users table
-          const { error: insertError } = await supabase.from("users").upsert({
-            id: data.user.id,
-            email: email,
-            full_name: fullName,
-            phone_number: phoneNumber,
-            role: "user",
-          })
+        if (insertError) {
+          console.error("Error inserting user data:", insertError)
+        }
 
-          if (insertError) {
-            console.error("Error inserting user data:", insertError)
-          }
+        // Sign in immediately after signup
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
 
-          // Sign in immediately after signup
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          })
-
-          if (signInError) {
-            setMessage("Account created but sign in failed. Please try signing in manually.")
-          } else {
-            router.push("/products")
-          }
+        if (signInError) {
+          setMessage("Account created but sign in failed. Please try signing in manually.")
         } else {
-          // Email confirmation is required
-          setMessage("Please check your email and click the confirmation link to complete your registration.")
+          router.push("/products")
         }
       }
     } catch (error) {
