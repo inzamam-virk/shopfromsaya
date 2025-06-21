@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabase"
-import { Upload, X, ChevronUp, ChevronDown, Loader2 } from "lucide-react"
+import { Upload, X, ChevronUp, ChevronDown, Loader2, AlertCircle } from "lucide-react"
 
 interface ImageUploaderProps {
   images: string[]
@@ -19,59 +19,101 @@ interface ImageUploaderProps {
 export default function ImageUploader({ images, onImagesChange, maxImages = 5 }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<string>("")
 
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
-      const fileExt = file.name.split(".").pop()
+      setUploadProgress(`Uploading ${file.name}...`)
+
+      // Validate file
+      if (!file.type.startsWith("image/")) {
+        throw new Error("File must be an image")
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        // 5MB limit
+        throw new Error("File size must be less than 5MB")
+      }
+
+      const fileExt = file.name.split(".").pop()?.toLowerCase()
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
 
+      console.log("Uploading file:", fileName, "Size:", file.size)
+
+      // Upload to Supabase storage
       const { data, error } = await supabase.storage.from("saya-product-images").upload(fileName, file, {
         cacheControl: "3600",
         upsert: false,
       })
 
       if (error) {
-        console.error("Upload error:", error)
-        return null
+        console.error("Supabase upload error:", error)
+        throw new Error(`Upload failed: ${error.message}`)
       }
+
+      console.log("Upload successful:", data)
 
       // Get public URL
       const {
         data: { publicUrl },
       } = supabase.storage.from("saya-product-images").getPublicUrl(data.path)
 
+      console.log("Public URL:", publicUrl)
+
+      if (!publicUrl) {
+        throw new Error("Failed to get public URL")
+      }
+
       return publicUrl
     } catch (error) {
       console.error("Upload error:", error)
-      return null
+      throw error
     }
   }
 
   const handleFileSelect = useCallback(
     async (files: FileList | null) => {
       if (!files || files.length === 0) return
-      if (images.length >= maxImages) {
-        alert(`Maximum ${maxImages} images allowed`)
+
+      const remainingSlots = maxImages - images.length
+      if (remainingSlots <= 0) {
+        setUploadError(`Maximum ${maxImages} images allowed`)
         return
       }
 
       setUploading(true)
-      const newImages: string[] = []
+      setUploadError(null)
+      setUploadProgress("")
 
-      for (let i = 0; i < Math.min(files.length, maxImages - images.length); i++) {
-        const file = files[i]
-        if (file.type.startsWith("image/")) {
+      const filesToUpload = Array.from(files).slice(0, remainingSlots)
+      const newImages: string[] = []
+      const errors: string[] = []
+
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i]
+        try {
           const url = await uploadImage(file)
           if (url) {
             newImages.push(url)
+            setUploadProgress(`Uploaded ${i + 1}/${filesToUpload.length} images`)
           }
+        } catch (error) {
+          console.error(`Error uploading ${file.name}:`, error)
+          errors.push(`${file.name}: ${error.message}`)
         }
       }
 
       if (newImages.length > 0) {
         onImagesChange([...images, ...newImages])
       }
+
+      if (errors.length > 0) {
+        setUploadError(`Some uploads failed:\n${errors.join("\n")}`)
+      }
+
       setUploading(false)
+      setUploadProgress("")
     },
     [images, maxImages, onImagesChange],
   )
@@ -110,11 +152,54 @@ export default function ImageUploader({ images, onImagesChange, maxImages = 5 }:
     }
   }
 
+  const testStorageConnection = async () => {
+    try {
+      setUploadProgress("Testing storage connection...")
+      const { data, error } = await supabase.storage.from("saya-product-images").list("", { limit: 1 })
+
+      if (error) {
+        console.error("Storage test error:", error)
+        setUploadError(`Storage connection failed: ${error.message}`)
+      } else {
+        console.log("Storage connection successful:", data)
+        setUploadError(null)
+        setUploadProgress("Storage connection successful!")
+        setTimeout(() => setUploadProgress(""), 2000)
+      }
+    } catch (error) {
+      console.error("Storage test error:", error)
+      setUploadError(`Storage test failed: ${error.message}`)
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <Label>
-        Product Images ({images.length}/{maxImages})
-      </Label>
+      <div className="flex items-center justify-between">
+        <Label>
+          Product Images ({images.length}/{maxImages})
+        </Label>
+        <Button type="button" variant="outline" size="sm" onClick={testStorageConnection} disabled={uploading}>
+          Test Storage
+        </Button>
+      </div>
+
+      {/* Error Display */}
+      {uploadError && (
+        <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+          <div className="text-sm text-red-700 whitespace-pre-line">{uploadError}</div>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setUploadError(null)} className="ml-auto">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Progress Display */}
+      {uploadProgress && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="text-sm text-blue-700">{uploadProgress}</div>
+        </div>
+      )}
 
       {/* Upload Area */}
       <div
@@ -154,6 +239,7 @@ export default function ImageUploader({ images, onImagesChange, maxImages = 5 }:
             <p className="text-xs text-gray-500 mt-2">
               {maxImages - images.length} more image{maxImages - images.length !== 1 ? "s" : ""} allowed
             </p>
+            <p className="text-xs text-gray-400 mt-1">Supported formats: JPG, PNG, GIF, WebP (Max 5MB each)</p>
           </>
         )}
       </div>
@@ -169,6 +255,10 @@ export default function ImageUploader({ images, onImagesChange, maxImages = 5 }:
                   alt={`Product image ${index + 1}`}
                   fill
                   className="object-cover"
+                  onError={(e) => {
+                    console.error("Image load error:", image)
+                    e.currentTarget.src = "/placeholder.svg?height=200&width=200"
+                  }}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all" />
 
@@ -220,6 +310,17 @@ export default function ImageUploader({ images, onImagesChange, maxImages = 5 }:
           ))}
         </div>
       )}
+
+      {/* Debug Info */}
+      <details className="text-xs text-gray-500">
+        <summary className="cursor-pointer">Debug Info</summary>
+        <div className="mt-2 p-2 bg-gray-50 rounded">
+          <p>Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? "✓ Set" : "✗ Missing"}</p>
+          <p>Supabase Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✓ Set" : "✗ Missing"}</p>
+          <p>Current Images: {images.length}</p>
+          <p>Max Images: {maxImages}</p>
+        </div>
+      </details>
     </div>
   )
 }
