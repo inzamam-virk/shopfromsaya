@@ -74,7 +74,7 @@ export default function AuthPage() {
         options: {
           data: {
             full_name: fullName,
-            phone_number: phoneNumber,
+            phone: phoneNumber,
           },
         },
       })
