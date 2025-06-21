@@ -67,16 +67,14 @@ export default function AuthPage() {
     const phoneNumber = formData.get("phoneNumber") as string
 
     try {
-      // Sign up with email confirmation disabled
+      // Sign up without email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: undefined,
           data: {
             full_name: fullName,
             phone_number: phoneNumber,
-            email_confirm: false,
           },
         },
       })
@@ -84,29 +82,37 @@ export default function AuthPage() {
       if (error) {
         setMessage(error.message)
       } else if (data.user) {
-        // Insert user data into our users table immediately
-        const { error: insertError } = await supabase.from("users").upsert({
-          id: data.user.id,
-          email: email,
-          full_name: fullName,
-          phone_number: phoneNumber,
-          role: "user",
-        })
+        // Check if user needs email confirmation
+        if (data.user.email_confirmed_at || !data.user.confirmation_sent_at) {
+          // User is confirmed or confirmation is disabled - proceed with login
 
-        if (insertError) {
-          console.error("Error inserting user data:", insertError)
-        }
+          // Insert user data into our users table
+          const { error: insertError } = await supabase.from("users").upsert({
+            id: data.user.id,
+            email: email,
+            full_name: fullName,
+            phone_number: phoneNumber,
+            role: "user",
+          })
 
-        // Sign in immediately after signup
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
+          if (insertError) {
+            console.error("Error inserting user data:", insertError)
+          }
 
-        if (signInError) {
-          setMessage("Account created but sign in failed. Please try signing in manually.")
+          // Sign in immediately after signup
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
+
+          if (signInError) {
+            setMessage("Account created but sign in failed. Please try signing in manually.")
+          } else {
+            router.push("/products")
+          }
         } else {
-          router.push("/products")
+          // Email confirmation is required
+          setMessage("Please check your email and click the confirmation link to complete your registration.")
         }
       }
     } catch (error) {
