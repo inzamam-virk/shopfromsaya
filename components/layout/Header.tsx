@@ -15,30 +15,43 @@ import type { User as UserType } from "@/lib/types"
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [user, setUser] = useState<UserType | null>(null)
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const { getTotalItems, openCart } = useCart()
   const router = useRouter()
 
   useEffect(() => {
     const getUser = async () => {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser()
-      if (authUser) {
-        const { data: userData } = await supabase.from("users").select("*").eq("id", authUser.id).single()
-        setUser(userData)
+      try {
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser()
+
+        if (authUser) {
+          const { data: userData } = await supabase.from("users").select("*").eq("id", authUser.id).single()
+          setUser(userData)
+        } else {
+          setUser(null)
+        }
+      } catch (error) {
+        console.error("Error fetching user:", error)
+        setUser(null)
+      } finally {
+        setLoading(false)
       }
     }
 
+    // Get user immediately
     getUser()
 
+    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
+      if (event === "SIGNED_IN" && session?.user) {
         const { data: userData } = await supabase.from("users").select("*").eq("id", session.user.id).single()
         setUser(userData)
-      } else {
+      } else if (event === "SIGNED_OUT") {
         setUser(null)
       }
     })
@@ -123,47 +136,57 @@ export default function Header() {
           {/* Right side icons */}
           <div className="flex items-center space-x-4">
             {/* User Menu */}
-            {user ? (
-              <div className="relative group">
-                <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                  <User className="h-5 w-5" />
-                  <span className="hidden sm:inline">{user.full_name}</span>
-                </Button>
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                  <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                    My Profile
+            {!loading && (
+              <>
+                {user ? (
+                  <div className="relative group">
+                    <Button variant="ghost" size="sm" className="flex items-center space-x-1">
+                      <User className="h-5 w-5" />
+                      <span className="hidden sm:inline">{user.full_name}</span>
+                    </Button>
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                      <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        My Profile
+                      </Link>
+                      <Link href="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        Order History
+                      </Link>
+                      {user.role === "admin" && (
+                        <>
+                          <Link href="/admin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            Admin Dashboard
+                          </Link>
+                          <Link
+                            href="/admin/products"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            Manage Products
+                          </Link>
+                          <Link
+                            href="/admin/orders"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            Manage Orders
+                          </Link>
+                        </>
+                      )}
+                      <button
+                        onClick={handleSignOut}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <Link href="/auth" prefetch={false}>
+                    <Button variant="ghost" size="sm" className="flex items-center space-x-1">
+                      <User className="h-5 w-5" />
+                      <span className="hidden sm:inline">Sign In</span>
+                    </Button>
                   </Link>
-                  <Link href="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                    Order History
-                  </Link>
-                  {user.role === "admin" && (
-                    <>
-                      <Link href="/admin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Admin Dashboard
-                      </Link>
-                      <Link href="/admin/products" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Manage Products
-                      </Link>
-                      <Link href="/admin/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Manage Orders
-                      </Link>
-                    </>
-                  )}
-                  <button
-                    onClick={handleSignOut}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <Link href="/auth" prefetch={false}>
-                <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                  <User className="h-5 w-5" />
-                  <span className="hidden sm:inline">Sign In</span>
-                </Button>
-              </Link>
+                )}
+              </>
             )}
 
             {/* Cart */}

@@ -18,10 +18,7 @@ export default function HomePage() {
       {/* Welcome Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center py-12">
         <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">Welcome to SAYA</h1>
-        <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-          Discover our collection of soft and chic fashion designed for the modern woman. From elegant dresses to
-          comfortable everyday wear, find your perfect style.
-        </p>
+        <p className="text-xl font-semibold text-gray-900 mb-8">Stay Trendy. Stay Confident. Stay Saya.</p>
         <Button asChild size="lg" className="bg-gray-900 hover:bg-gray-800">
           <Link href="/products">Shop Now</Link>
         </Button>

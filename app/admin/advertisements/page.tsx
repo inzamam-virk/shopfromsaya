@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
+import AdvertisementImageUploader from "@/components/AdvertisementImageUploader"
 import type { Advertisement, User } from "@/lib/types"
 import { Plus, Edit, Trash2, Eye, EyeOff } from "lucide-react"
 
@@ -70,8 +71,18 @@ export default function AdminAdvertisementsPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleImageChange = (imageUrl: string) => {
+    setFormData((prev) => ({ ...prev, image_url: imageUrl }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!formData.image_url) {
+      alert("Please upload an advertisement image")
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -191,17 +202,7 @@ export default function AdminAdvertisementsPage() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="image_url">Image URL *</Label>
-                <Input
-                  id="image_url"
-                  name="image_url"
-                  value={formData.image_url}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
+              <AdvertisementImageUploader imageUrl={formData.image_url} onImageChange={handleImageChange} />
 
               <div>
                 <Label htmlFor="link_url">Link URL (optional)</Label>
