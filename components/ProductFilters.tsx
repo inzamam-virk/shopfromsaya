@@ -16,7 +16,6 @@ export default function ProductFilters() {
   useEffect(() => {
     const fetchCategories = async () => {
       const { data } = await supabase.from("categories").select("*").order("name")
-
       setCategories(data || [])
     }
 
@@ -41,6 +40,11 @@ export default function ProductFilters() {
     router.push("/products")
   }
 
+  // Get current filter values
+  const currentSort = searchParams.get("sort") || "default"
+  const currentCategory = searchParams.get("category") || ""
+  const currentFeatured = searchParams.get("featured") === "true"
+
   return (
     <div className="space-y-6">
       <div>
@@ -54,8 +58,8 @@ export default function ProductFilters() {
       <div>
         <h4 className="font-medium mb-3">Sort By</h4>
         <Select
-          value={searchParams.get("sort") || "default"}
-          onValueChange={(value) => updateFilters("sort", value || null)}
+          value={currentSort}
+          onValueChange={(value) => updateFilters("sort", value === "default" ? null : value)}
         >
           <SelectTrigger>
             <SelectValue placeholder="Default" />
@@ -66,6 +70,7 @@ export default function ProductFilters() {
             <SelectItem value="price_desc">Price: High to Low</SelectItem>
             <SelectItem value="name_asc">Name: A to Z</SelectItem>
             <SelectItem value="name_desc">Name: Z to A</SelectItem>
+            <SelectItem value="newest">Newest First</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -74,18 +79,25 @@ export default function ProductFilters() {
       <div>
         <h4 className="font-medium mb-3">Categories</h4>
         <div className="space-y-2">
-          {categories.map((category) => (
-            <div key={category.id} className="flex items-center space-x-2">
-              <Checkbox
-                id={category.id}
-                checked={searchParams.get("category") === category.name.toLowerCase()}
-                onCheckedChange={(checked) => updateFilters("category", checked ? category.name.toLowerCase() : null)}
-              />
-              <label htmlFor={category.id} className="text-sm cursor-pointer">
-                {category.name}
-              </label>
-            </div>
-          ))}
+          {categories.map((category) => {
+            const categorySlug = category.name.toLowerCase().replace(/\s+/g, '-').replace('&', 'and')
+            const isSelected = currentCategory === categorySlug || currentCategory === category.name.toLowerCase()
+            
+            return (
+              <div key={category.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={category.id}
+                  checked={isSelected}
+                  onCheckedChange={(checked) => 
+                    updateFilters("category", checked ? categorySlug : null)
+                  }
+                />
+                <label htmlFor={category.id} className="text-sm cursor-pointer">
+                  {category.name}
+                </label>
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -95,7 +107,7 @@ export default function ProductFilters() {
         <div className="flex items-center space-x-2">
           <Checkbox
             id="featured"
-            checked={searchParams.get("featured") === "true"}
+            checked={currentFeatured}
             onCheckedChange={(checked) => updateFilters("featured", checked ? "true" : null)}
           />
           <label htmlFor="featured" className="text-sm cursor-pointer">

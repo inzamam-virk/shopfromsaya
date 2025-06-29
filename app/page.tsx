@@ -47,7 +47,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { name: "Dresses", href: "/products?category=dresses", image: "/placeholder.svg?height=300&width=300" },
-              { name: "Tops", href: "/products?category=tops", image: "/placeholder.svg?height=300&width=300" },
+              { name: "Tops & Sets", href: "/products?category=tops", image: "/placeholder.svg?height=300&width=300" },
               { name: "Bottoms", href: "/products?category=bottoms", image: "/placeholder.svg?height=300&width=300" },
               {
                 name: "Accessories",

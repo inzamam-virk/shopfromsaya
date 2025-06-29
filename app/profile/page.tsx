@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import type { User, Order } from "@/lib/types"
-import { Package, MapPin, UserIcon } from "lucide-react"
+import { Package, MapPin, UserIcon } from 'lucide-react'
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null)
@@ -21,7 +21,8 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     full_name: "",
     phone_number: "",
-    street: "",
+    addressLine1: "",
+    addressLine2: "",
     city: "",
     state: "",
     postal_code: "",
@@ -42,10 +43,12 @@ export default function ProfilePage() {
       const { data: userData } = await supabase.from("users").select("*").eq("id", authUser.id).single()
       if (userData) {
         setUser(userData)
+        const addressParts = userData.shipping_address?.street?.split(',') || []
         setFormData({
           full_name: userData.full_name || "",
           phone_number: userData.phone_number || "",
-          street: userData.shipping_address?.street || "",
+          addressLine1: addressParts[0]?.trim() || "",
+          addressLine2: addressParts[1]?.trim() || "",
           city: userData.shipping_address?.city || "",
           state: userData.shipping_address?.state || "",
           postal_code: userData.shipping_address?.postal_code || "",
@@ -89,7 +92,7 @@ export default function ProfilePage() {
           full_name: formData.full_name,
           phone_number: formData.phone_number,
           shipping_address: {
-            street: formData.street,
+            street: `${formData.addressLine1}${formData.addressLine2 ? `, ${formData.addressLine2}` : ''}`,
             city: formData.city,
             state: formData.state,
             postal_code: formData.postal_code,
@@ -180,8 +183,13 @@ export default function ProfilePage() {
                   </h3>
 
                   <div>
-                    <Label htmlFor="street">Street Address</Label>
-                    <Input id="street" name="street" value={formData.street} onChange={handleInputChange} />
+                    <Label htmlFor="addressLine1">Address Line 1</Label>
+                    <Input id="addressLine1" name="addressLine1" value={formData.addressLine1} onChange={handleInputChange} />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="addressLine2">Address Line 2</Label>
+                    <Input id="addressLine2" name="addressLine2" value={formData.addressLine2} onChange={handleInputChange} />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

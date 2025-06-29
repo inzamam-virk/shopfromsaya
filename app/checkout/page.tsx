@@ -22,11 +22,12 @@ export default function CheckoutPage() {
     guestName: "",
     guestEmail: "",
     guestPhone: "",
-    street: "",
+    addressLine1: "",
+    addressLine2: "",
     city: "",
     state: "",
     postalCode: "",
-    country: "Pakistan",
+    country: "",
     paymentMethod: "cod" as "cod" | "bank_transfer",
     paymentProof: null as File | null,
   })
@@ -45,13 +46,15 @@ export default function CheckoutPage() {
         if (userData) {
           setUser(userData)
           if (userData.shipping_address) {
+            const addressParts = userData.shipping_address.street?.split(',') || []
             setFormData((prev) => ({
               ...prev,
-              street: userData.shipping_address.street || "",
+              addressLine1: addressParts[0]?.trim() || "",
+              addressLine2: addressParts[1]?.trim() || "",
               city: userData.shipping_address.city || "",
               state: userData.shipping_address.state || "",
               postalCode: userData.shipping_address.postal_code || "",
-              country: userData.shipping_address.country || "Pakistan",
+              country: userData.shipping_address.country || "",
             }))
           }
         }
@@ -88,7 +91,7 @@ export default function CheckoutPage() {
         return
       }
 
-      if (!formData.street || !formData.city || !formData.state || !formData.postalCode) {
+      if (!formData.addressLine1 || !formData.city || !formData.state || !formData.postalCode || !formData.country) {
         alert("Please fill in all shipping address fields")
         setLoading(false)
         return
@@ -122,7 +125,7 @@ export default function CheckoutPage() {
         guest_email: user ? user.email : formData.guestEmail,
         guest_phone: user ? user.phone_number : formData.guestPhone,
         shipping_address: {
-          street: formData.street,
+          street: `${formData.addressLine1}${formData.addressLine2 ? `, ${formData.addressLine2}` : ''}`,
           city: formData.city,
           state: formData.state,
           postal_code: formData.postalCode,
@@ -170,7 +173,7 @@ export default function CheckoutPage() {
               })),
               totalAmount: getTotalPrice(),
               shippingAddress: {
-                street: formData.street,
+                street: `${formData.addressLine1}${formData.addressLine2 ? `, ${formData.addressLine2}` : ''}`,
                 city: formData.city,
                 state: formData.state,
                 postal_code: formData.postalCode,
@@ -254,8 +257,13 @@ export default function CheckoutPage() {
               )}
 
               <div>
-                <Label htmlFor="street">Street Address *</Label>
-                <Input id="street" name="street" value={formData.street} onChange={handleInputChange} required />
+                <Label htmlFor="addressLine1">Address Line 1 *</Label>
+                <Input id="addressLine1" name="addressLine1" value={formData.addressLine1} onChange={handleInputChange} required />
+              </div>
+
+              <div>
+                <Label htmlFor="addressLine2">Address Line 2</Label>
+                <Input id="addressLine2" name="addressLine2" value={formData.addressLine2} onChange={handleInputChange} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
